@@ -1,6 +1,6 @@
-# My Audio Engine
+# Audio Engine
 
-[!NOTE] Currently in development and not all feature are implemented yet
+> [!NOTE] Currently in development and not all feature are implemented yet
 
 This is a bare bones audio mixing engine designed to be lightweight, efficient, and run in the terminal
 
