@@ -11,28 +11,21 @@ AudioFile readAudioFile(std::string path) {
   AudioFile audioFile{};
   bool isFloatData = false;
 
-  // ==========================================================================
-  // Riff Header
-  // ==========================================================================
-  std::string riffTitle = readString(file, 4);  // 4 bytes - Riff Title
-  uint32_t fileSize = readU32(file) + 8;        // 4 bytes - File Size
-  std::string fileFormat = readString(file, 4); // 4 bytes - File Format
-
-  if (riffTitle != "RIFF" || fileFormat != "WAVE") {
+  std::string riff = readString(file, 4);   // 4 bytes - Riff Title
+  uint32_t fileSize = readU32(file) + 8;    // 4 bytes - File Size
+  std::string format = readString(file, 4); // 4 bytes - File Format
+                                            //
+  if (riff != "RIFF" || format != "WAVE") {
     fclose(file);
     throw std::runtime_error("Only .wav files are supported");
   };
 
-  // ==========================================================================
-  // Chunks
-  // ==========================================================================
   char chunkName[5] = {};
   uint32_t chunkSize;
   while (fread(&chunkName, 4, 1, file) && fread(&chunkSize, 4, 1, file)) {
     long chunkEnd = ftell(file) + chunkSize + (chunkSize & 1);
-    // ========================================================================
+
     // Format Chunk
-    // ========================================================================
     if (std::strcmp(chunkName, "fmt ") == 0) {
       uint16_t pcmFlags = readU16(file);   // 2 bytes - PcmFlags
       uint16_t channels = readU16(file);   // 2 bytes - Channel Count
@@ -41,19 +34,20 @@ AudioFile readAudioFile(std::string path) {
       uint16_t blockAlign = readU16(file); // 2 bytes - BlockAlign
       uint16_t bitDepth = readU16(file);   // 2 bytes - BitDepth
 
-      audioFile.channels = channels;
       audioFile.bitsPerSample = bitDepth;
       audioFile.sampleRate = sampleRate;
+      audioFile.channels = channels;
 
       if (pcmFlags == 3) {
         isFloatData = true;
       }
 
-      // Parse extension if present
       if (chunkSize != 16) {
         uint16_t extensionSize = readU16(file); // 2 bytes - Extension Size
-        if (pcmFlags == 65534) {                // WAVE_FORMAT_EXTENSIBLE
-          uint16_t validBits = readU16(file); // 2 bytes - Valid Bits Per Sample
+
+        // Wave Format Extensible
+        if (pcmFlags == 65534) {
+          uint16_t validBits = readU16(file);   // 2 bytes - Valid Bits
           uint32_t channelMask = readU32(file); // 4 bytes - Channel Mask
           uint32_t subFormat = readU32(file);   // 4 bytes - Sub Format
 
@@ -65,13 +59,11 @@ AudioFile readAudioFile(std::string path) {
       }
     }
 
-    // ========================================================================
     // Data Chunk
-    // ========================================================================
     if (std::strcmp(chunkName, "data") == 0) {
       uint16_t bitsPerSample = audioFile.bitsPerSample;
 
-      // Vector of floats to store final data
+      // Final Vector
       int bytesPerSample = bitsPerSample / 8;
       int numberOfSamples = chunkSize / bytesPerSample;
       audioFile.samples = std::vector<float>(numberOfSamples);
@@ -80,25 +72,25 @@ AudioFile readAudioFile(std::string path) {
         fread(audioFile.samples.data(), sizeof(float), numberOfSamples, file);
       } else {
 
-        // Read raw bytes into memory
+        // Raw bytes
         std::vector<uint8_t> rawBytes(chunkSize);
         fread(rawBytes.data(), 1, chunkSize, file);
 
-        // Create normalization ratio
-        float maxValue = 1u << (bitsPerSample - 1); // - 1 since value is signed
+        // Normalization scale
+        float maxValue = 1u << (bitsPerSample - 1);
         float normalizationScale = 1.0f / (1.0 + maxValue);
 
         for (int i = 0; i < numberOfSamples; i++) {
-          // Copy bytes into 4 byte int
+          // Copy raw bytes for each sample
           uint32_t rawValue = 0;
           memcpy(&rawValue, rawBytes.data() + (i * bytesPerSample),
                  bytesPerSample);
 
-          // Shift signed bit all the way left and back right to fill
+          // Shift signed bit
           int unusedBits = 32 - bitsPerSample;
           int32_t sample = (int32_t)(rawValue << unusedBits) >> unusedBits;
 
-          // Normalize to -1 - 1 range
+          // Normalize
           float normalizedValue = sample * normalizationScale;
           audioFile.samples[i] = normalizedValue;
         }
