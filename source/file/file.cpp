@@ -14,7 +14,7 @@ AudioFile readAudioFile(std::string path) {
   std::string riff = readString(file, 4);   // 4 bytes - Riff Title
   uint32_t fileSize = readU32(file) + 8;    // 4 bytes - File Size
   std::string format = readString(file, 4); // 4 bytes - File Format
-                                            //
+
   if (riff != "RIFF" || format != "WAVE") {
     fclose(file);
     throw std::runtime_error("Only .wav files are supported");
