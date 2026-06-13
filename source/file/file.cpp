@@ -72,16 +72,16 @@ AudioFile readAudioFile(std::string path) {
         fread(audioFile.samples.data(), sizeof(float), numberOfSamples, file);
       } else {
 
-        // Raw bytes
-        std::vector<uint8_t> rawBytes(chunkSize);
-        fread(rawBytes.data(), 1, chunkSize, file);
-
         // Normalization scale
         float maxValue = 1u << (bitsPerSample - 1);
         float normalizationScale = 1.0f / (1.0 + maxValue);
 
+        // All raw bytes
+        std::vector<uint8_t> rawBytes(chunkSize);
+        fread(rawBytes.data(), 1, chunkSize, file);
+
         for (int i = 0; i < numberOfSamples; i++) {
-          // Copy raw bytes for each sample
+          // Construct each sample
           uint32_t rawValue = 0;
           memcpy(&rawValue, rawBytes.data() + (i * bytesPerSample),
                  bytesPerSample);
