@@ -80,8 +80,8 @@ AudioFile readAudioFile(std::string path) {
         std::vector<uint8_t> rawBytes(chunkSize);
         fread(rawBytes.data(), 1, chunkSize, file);
 
-        for (int i = 0; i < numberOfSamples; i++) {
           // Construct each sample
+        for (int i = 0; i < numberOfSamples; i++) {
           uint32_t rawValue = 0;
           memcpy(&rawValue, rawBytes.data() + (i * bytesPerSample),
                  bytesPerSample);
