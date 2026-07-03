@@ -80,7 +80,7 @@ AudioFile readAudioFile(std::string path) {
         std::vector<uint8_t> rawBytes(chunkSize);
         fread(rawBytes.data(), 1, chunkSize, file);
 
-          // Construct each sample
+        // Construct each sample
         for (int i = 0; i < numberOfSamples; i++) {
           uint32_t rawValue = 0;
           memcpy(&rawValue, rawBytes.data() + (i * bytesPerSample),
@@ -104,22 +104,4 @@ AudioFile readAudioFile(std::string path) {
 
   fclose(file);
   throw std::runtime_error("Could not locate audio data from file: " + path);
-}
-
-std::string readString(FILE *file, uint32_t length) {
-  std::string name(length, '\0');
-  fread(&name[0], length, 1, file);
-  return name;
-}
-
-uint32_t readU32(FILE *file) {
-  uint32_t value;
-  fread(&value, 4, 1, file);
-  return value;
-}
-
-uint16_t readU16(FILE *file) {
-  uint16_t value;
-  fread(&value, 2, 1, file);
-  return value;
 }

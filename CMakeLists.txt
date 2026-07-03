@@ -9,6 +9,7 @@ target_sources(audio-engine
   PRIVATE
     source/main.cpp
     source/file/file.cpp
+    source/file/utils/utils.cpp
 )
 
 # Link Core Audio Libraries
