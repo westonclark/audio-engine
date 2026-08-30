@@ -1,6 +1,7 @@
-#include "./utils/utils.h"
-#include <cstdint>
+#pragma once
+
 #include <iostream>
+#include <cstdint>
 
 struct AudioFile {
   std::vector<float> samples;
@@ -10,3 +11,7 @@ struct AudioFile {
 };
 
 AudioFile readAudioFile(std::string path);
+
+std::string readString(FILE *file, uint32_t length);
+uint32_t readU32(FILE *file);
+uint16_t readU16(FILE *file);

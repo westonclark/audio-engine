@@ -105,3 +105,21 @@ AudioFile readAudioFile(std::string path) {
   fclose(file);
   throw std::runtime_error("Could not locate audio data from file: " + path);
 }
+
+std::string readString(FILE *file, uint32_t length) {
+  std::string name(length, '\0');
+  fread(&name[0], length, 1, file);
+  return name;
+}
+
+uint32_t readU32(FILE *file) {
+  uint32_t value;
+  fread(&value, 4, 1, file);
+  return value;
+}
+
+uint16_t readU16(FILE *file) {
+  uint16_t value;
+  fread(&value, 2, 1, file);
+  return value;
+}
