@@ -10,6 +10,8 @@ target_sources(audio-engine
     source/main.cpp
     source/file/file.cpp
     source/coreaudio/device/device.cpp
+    source/engine/engine.cpp
+    source/coreaudio/IOProc/IOProc.cpp
 )
 
 # Link Core Audio Libraries
