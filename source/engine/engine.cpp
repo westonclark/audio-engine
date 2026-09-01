@@ -3,8 +3,7 @@
 #include <cstdint>
 
 AudioEngine::AudioEngine(int sampleRate, int bufferSize)
-    : bufferSize(bufferSize), sampleRate(sampleRate), channels(8) {
-}
+    : bufferSize(bufferSize), sampleRate(sampleRate), channels(8) {}
 
 void AudioEngine::prepare() {
   AudioEngine &engine = *this;
@@ -51,9 +50,16 @@ void AudioEngine::process(const AudioBufferList *input, AudioBufferList *output,
       for (Channel &channel : engine.channels) {
         if (channel.readPosition < channel.audioFile.samples.size()) {
           outData[j] += channel.audioFile.samples[channel.readPosition];
-          channel.readPosition++;
-        }
-      };
+          // if channel.audiofile.channels is 1, only increment on the even j's
+          if (channel.audioFile.channels == 1) {
+            if (j & 1) {
+              channel.readPosition++;
+            }
+          } else {
+            channel.readPosition++;
+          }
+        };
+      }
     }
   }
 };
