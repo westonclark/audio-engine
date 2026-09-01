@@ -3,7 +3,7 @@
 #include <cstdint>
 
 AudioEngine::AudioEngine(int sampleRate, int bufferSize)
-    : bufferSize(bufferSize), sampleRate(sampleRate), channels(1) {
+    : bufferSize(bufferSize), sampleRate(sampleRate), channels(8) {
 }
 
 void AudioEngine::prepare() {
