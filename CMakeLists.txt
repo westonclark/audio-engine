@@ -11,6 +11,7 @@ target_sources(audio-engine
     source/file/file.cpp
     source/coreaudio/device/device.cpp
     source/engine/engine.cpp
+    source/channel/channel.cpp
     source/coreaudio/IOProc/IOProc.cpp
 )
 

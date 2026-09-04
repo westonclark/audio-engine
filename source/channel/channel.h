@@ -5,7 +5,9 @@ public:
   AudioFile audioFile;
   size_t readPosition = 0;
 
-  std::atomic<int> gain = 0;
+  std::atomic<double> gain = 0;
+  std::atomic<double> gainRatio = 0;
 
-  void process() {};
+  void process();
+  void setGain(double newGain);
 };

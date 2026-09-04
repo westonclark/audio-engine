@@ -49,9 +49,7 @@ void AudioEngine::process(const AudioBufferList *input, AudioBufferList *output,
     for (uint32_t j = 0; j < sampleCount; j++) {
       for (Channel &channel : engine.channels) {
         if (channel.readPosition < channel.audioFile.samples.size()) {
-          int channelGain = channel.gain.load();
-          float gainedValue = channel.audioFile.samples[channel.readPosition] *
-                              std::pow(10.0, channelGain / 20.0);
+          float gainedValue = channel.audioFile.samples[channel.readPosition] * channel.gainRatio.load();
           outData[j] = std::clamp(outData[j] += gainedValue, -1.f, 1.f);
 
           // if channel.audiofile.channels is 1, only increment on the even j's
