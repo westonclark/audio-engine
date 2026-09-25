@@ -1,8 +1,6 @@
 #include "./coreaudio/device/device.h"
-#include "./file/file.h"
 #include "engine/engine.h"
 #include <CoreAudio/CoreAudio.h>
-#include <thread>
 
 int main() {
   AudioEngine engine(48000, 128);
@@ -24,10 +22,33 @@ int main() {
   }
 
   engine.prepare();
-  engine.play();
-  std::this_thread::sleep_for(std::chrono::duration<double>(30));
-  engine.stop();
+
+  std::string input;
+  std::cout << "Audio Engine Started" << std::endl;
+
+  std::cout << "Enter Command: ";
+
+  while (std::getline(std::cin, input)) {
+    if (input == "start") {
+      std::cout << "Starting" << std::endl;
+      engine.play();
+    };
+
+    if (input == "stop") {
+      std::cout << "Stopping" << std::endl;
+      engine.stop();
+    };
+
+    if (input == "quit") {
+      std::cout << "Tearing Down" << std::endl;
+      engine.teardown();
+      return 0;
+    };
+
+    std::cout << "Enter Command: ";
+  }
   engine.teardown();
 
   return 0;
 }
+
