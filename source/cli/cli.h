@@ -1,5 +1,5 @@
 #include "../engine/engine.h"
-#include <iostream>
+#include <optional>
 #include <string>
 
 class Cli {
@@ -11,6 +11,6 @@ private:
   bool running = true;
   AudioEngine &engine;
 
-  void parseCommand(std::string command);
-
+  bool handleCommand(std::string &command);
+  std::optional<std::string> readInput();
 };

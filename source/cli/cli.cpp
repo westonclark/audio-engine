@@ -3,31 +3,31 @@
 Cli::Cli(AudioEngine &engine) : engine(engine) {};
 
 void Cli::start() {
-  std::string command;
-
-  while (running) {
-    std::cout << "Enter Command: ";
-    if (!std::getline(std::cin, command)) {
+  while (auto command = readInput()) {
+    if (!handleCommand(*command))
       break;
-    }
-    parseCommand(command);
   }
 }
 
-void Cli::parseCommand(std::string command) {
-  if (command == "start") {
+std::optional<std::string> Cli::readInput() {
+  std::cout << "Enter Command: ";
+
+  std::string line;
+  if (!std::getline(std::cin, line)) {
+    return std::nullopt;
+  }
+  return line;
+}
+
+bool Cli::handleCommand(std::string &command) {
+  if (command == "quit") {
+    return false;
+  } else if (command == "start") {
     engine.play();
-  }
-
-  else if (command == "stop") {
+  } else if (command == "stop") {
     engine.stop();
-  }
-
-  else if (command == "quit") {
-    running = false;
-  }
-
-  else {
+  } else {
     std::cout << "Invalid Command " << std::endl;
   }
+  return true;
 };
