@@ -1,9 +1,17 @@
 #include "./coreaudio/device/device.h"
+#include "cli/cli.h"
 #include "engine/engine.h"
 #include <CoreAudio/CoreAudio.h>
 
 int main() {
   AudioEngine engine(48000, 128);
+
+  std::vector<AudioDevice> audioDevices = getAvailableDevices();
+  for (AudioDevice device : audioDevices) {
+    if (device.name == "MacBook Pro Speakers") {
+      engine.outputDevice = device;
+    }
+  }
 
   engine.channels[0].audioFile = readAudioFile("./media/01_Kick Out.wav");
   engine.channels[1].audioFile = readAudioFile("./media/02_Snare Top.wav");
@@ -14,40 +22,12 @@ int main() {
   engine.channels[6].audioFile = readAudioFile("./media/07_Overhead L.wav");
   engine.channels[7].audioFile = readAudioFile("./media/08_Overhead R.wav");
 
-  std::vector<AudioDevice> audioDevices = getAvailableDevices();
-  for (AudioDevice device : audioDevices) {
-    if (device.name == "MacBook Pro Speakers") {
-      engine.outputDevice = device;
-    }
-  }
-
   engine.prepare();
-
-  std::string command;
   std::cout << "Audio Engine Started" << std::endl;
 
-  std::cout << "Enter Command: ";
+  Cli cli(engine);
+  cli.start();
 
-  while (std::getline(std::cin, command)) {
-    if (command == "start") {
-      std::cout << "Starting" << std::endl;
-      engine.play();
-    };
-
-    if (command == "stop") {
-      std::cout << "Stopping" << std::endl;
-      engine.stop();
-    };
-
-    if (command == "quit") {
-      std::cout << "Tearing Down" << std::endl;
-      engine.teardown();
-      return 0;
-    };
-
-    std::cout << "Enter Command: ";
-  }
   engine.teardown();
-
   return 0;
 }
