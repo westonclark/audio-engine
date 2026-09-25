@@ -23,23 +23,23 @@ int main() {
 
   engine.prepare();
 
-  std::string input;
+  std::string command;
   std::cout << "Audio Engine Started" << std::endl;
 
   std::cout << "Enter Command: ";
 
-  while (std::getline(std::cin, input)) {
-    if (input == "start") {
+  while (std::getline(std::cin, command)) {
+    if (command == "start") {
       std::cout << "Starting" << std::endl;
       engine.play();
     };
 
-    if (input == "stop") {
+    if (command == "stop") {
       std::cout << "Stopping" << std::endl;
       engine.stop();
     };
 
-    if (input == "quit") {
+    if (command == "quit") {
       std::cout << "Tearing Down" << std::endl;
       engine.teardown();
       return 0;
@@ -51,4 +51,3 @@ int main() {
 
   return 0;
 }
-
