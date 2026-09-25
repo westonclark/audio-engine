@@ -6,7 +6,9 @@ public:
   size_t readPosition = 0;
 
   std::atomic<double> gain = 0;
-  std::atomic<double> gainRatio = 0;
+  std::atomic<double> gainRatio;
+
+  Channel();
 
   void process();
   void setGain(double newGain);
