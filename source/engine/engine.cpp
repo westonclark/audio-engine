@@ -1,5 +1,7 @@
 #include "engine.h"
 #include "../coreaudio/IOProc/IOProc.h"
+#include <algorithm>
+#include <chrono>
 #include <cstdint>
 
 AudioEngine::AudioEngine(int sampleRate, int bufferSize)
@@ -10,6 +12,11 @@ void AudioEngine::prepare() {
   setDeviceSampleRate(engine.outputDevice.id, engine.sampleRate);
   engine.outputProcId =
       setDeviceCallback(engine.outputDevice.id, coreAudioIOProc, &engine);
+
+  for (Channel &channel : engine.channels) {
+    channel.fillBuffer();
+  }
+  engine.startDiskThread();
 }
 
 void AudioEngine::play() {
@@ -27,40 +34,71 @@ void AudioEngine::stop() {
 void AudioEngine::teardown() {
   AudioEngine &engine = *this;
 
-  if (engine.outputProcId == nullptr) {
+  if (engine.outputProcId != nullptr) {
+    if (engine.isRunning) {
+      engine.stop();
+    }
+    removeDeviceCallback(engine.outputDevice.id, engine.outputProcId);
+    engine.outputProcId = nullptr;
+  }
+  engine.stopDiskThread();
+}
+
+void AudioEngine::startDiskThread() {
+  AudioEngine &engine = *this;
+  if (engine.diskThreadRunning.load()) {
     return;
   }
-  if (engine.isRunning) {
-    engine.stop();
+  engine.diskThreadRunning.store(true);
+  engine.diskThread = std::thread(&AudioEngine::diskThreadLoop, &engine);
+}
+
+void AudioEngine::stopDiskThread() {
+  AudioEngine &engine = *this;
+  engine.diskThreadRunning.store(false);
+  if (engine.diskThread.joinable()) {
+    engine.diskThread.join();
   }
-  removeDeviceCallback(engine.outputDevice.id, engine.outputProcId);
-  engine.outputProcId = nullptr;
+}
+
+void AudioEngine::diskThreadLoop() {
+  AudioEngine &engine = *this;
+  while (engine.diskThreadRunning.load()) {
+    for (Channel &channel : engine.channels) {
+      channel.fillBuffer();
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
 }
 
 void AudioEngine::process(const AudioBufferList *input, AudioBufferList *output,
                           uint32_t frameCount) {
   AudioEngine &engine = *this;
 
-  for (uint32_t i = 0; i < (*output).mNumberBuffers; i++) {
-    AudioBuffer &buffer = (*output).mBuffers[i];
-    float *outData = static_cast<float *>(buffer.mData);
-    uint32_t sampleCount = frameCount * buffer.mNumberChannels;
+  for (uint32_t blockStart = 0; blockStart < frameCount;
+       blockStart += MAX_BLOCK_FRAMES) {
+    uint32_t blockFrames = std::min(frameCount - blockStart, MAX_BLOCK_FRAMES);
 
-    for (uint32_t j = 0; j < sampleCount; j++) {
-      for (Channel &channel : engine.channels) {
-        if (channel.readPosition < channel.audioFile.samples.size()) {
-          float gainedValue = channel.audioFile.samples[channel.readPosition] * channel.gainRatio.load();
-          outData[j] = std::clamp(outData[j] += gainedValue, -1.f, 1.f);
+    for (Channel &channel : engine.channels) {
+      channel.process(blockFrames);
+    }
 
-          // if channel.audiofile.channels is 1, only increment on the even j's
-          if (channel.audioFile.channels == 1) {
-            if (j & 1) {
-              channel.readPosition++;
-            }
-          } else {
-            channel.readPosition++;
-          }
-        };
+    for (uint32_t i = 0; i < (*output).mNumberBuffers; i++) {
+      AudioBuffer &buffer = (*output).mBuffers[i];
+      float *outData = static_cast<float *>(buffer.mData);
+      uint32_t outputChannels = buffer.mNumberChannels;
+
+      for (uint32_t frame = 0; frame < blockFrames; frame++) {
+        float mixedValue = 0;
+        for (Channel &channel : engine.channels) {
+          mixedValue += channel.processBuffer[frame];
+        }
+        mixedValue = std::clamp(mixedValue, -1.f, 1.f);
+
+        uint32_t outIndex = (blockStart + frame) * outputChannels;
+        for (uint32_t c = 0; c < outputChannels; c++) {
+          outData[outIndex + c] = mixedValue;
+        }
       }
     }
   }

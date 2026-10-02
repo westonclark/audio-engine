@@ -1,4 +1,5 @@
 #include "./cli.h"
+#include <iostream>
 
 Cli::Cli(AudioEngine &engine) : engine(engine) {};
 
@@ -11,7 +12,6 @@ void Cli::start() {
 
 std::optional<std::string> Cli::readInput() {
   std::cout << "Enter Command: ";
-
   std::string line;
   if (!std::getline(std::cin, line)) {
     return std::nullopt;

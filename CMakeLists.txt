@@ -14,6 +14,7 @@ target_sources(audio-engine
     source/channel/channel.cpp
     source/cli/cli.cpp
     source/coreaudio/IOProc/IOProc.cpp
+    source/ringbuffer/ringbuffer.cpp
 )
 
 # Link Core Audio Libraries
