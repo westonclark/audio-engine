@@ -13,34 +13,32 @@ size_t RingBuffer::available() const {
 size_t RingBuffer::freeSpace() const { return capacity - available(); }
 
 size_t RingBuffer::write(const float *source, size_t count) {
-  RingBuffer &ring = *this;
-  size_t write = ring.writeIndex.load(std::memory_order_relaxed);
-  size_t read = ring.readIndex.load(std::memory_order_acquire);
+  size_t write = writeIndex.load(std::memory_order_relaxed);
+  size_t read = readIndex.load(std::memory_order_acquire);
 
-  count = std::min(count, ring.capacity - (write - read));
+  count = std::min(count, capacity - (write - read));
 
-  size_t start = write & ring.mask;
-  size_t firstPart = std::min(count, ring.capacity - start);
-  memcpy(ring.data.data() + start, source, firstPart * sizeof(float));
-  memcpy(ring.data.data(), source + firstPart, (count - firstPart) * sizeof(float));
+  size_t start = write & mask;
+  size_t firstPart = std::min(count, capacity - start);
+  memcpy(data.data() + start, source, firstPart * sizeof(float));
+  memcpy(data.data(), source + firstPart, (count - firstPart) * sizeof(float));
 
-  ring.writeIndex.store(write + count, std::memory_order_release);
+  writeIndex.store(write + count, std::memory_order_release);
   return count;
 }
 
 size_t RingBuffer::read(float *destination, size_t count) {
-  RingBuffer &ring = *this;
-  size_t read = ring.readIndex.load(std::memory_order_relaxed);
-  size_t write = ring.writeIndex.load(std::memory_order_acquire);
+  size_t read = readIndex.load(std::memory_order_relaxed);
+  size_t write = writeIndex.load(std::memory_order_acquire);
 
   count = std::min(count, write - read);
 
-  size_t start = read & ring.mask;
-  size_t firstPart = std::min(count, ring.capacity - start);
-  memcpy(destination, ring.data.data() + start, firstPart * sizeof(float));
-  memcpy(destination + firstPart, ring.data.data(), (count - firstPart) * sizeof(float));
+  size_t start = read & mask;
+  size_t firstPart = std::min(count, capacity - start);
+  memcpy(destination, data.data() + start, firstPart * sizeof(float));
+  memcpy(destination + firstPart, data.data(), (count - firstPart) * sizeof(float));
 
-  ring.readIndex.store(read + count, std::memory_order_release);
+  readIndex.store(read + count, std::memory_order_release);
   return count;
 }
 

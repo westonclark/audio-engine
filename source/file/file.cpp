@@ -6,56 +6,51 @@
 AudioStream::~AudioStream() { close(); }
 
 void AudioStream::open(const std::string &path) {
-  AudioStream &stream = *this;
-  stream.close();
+  close();
 
-  stream.file = fopen(path.c_str(), "rb");
-  if (!stream.file) {
+  file = fopen(path.c_str(), "rb");
+  if (!file) {
     throw std::runtime_error("Error opening file: " + path);
   }
 
-  std::string riff = readString(stream.file, 4);   // 4 bytes - Riff Title
-  uint32_t fileSize = readU32(stream.file) + 8;    // 4 bytes - File Size
-  std::string format = readString(stream.file, 4); // 4 bytes - File Format
+  std::string riff = readString(file, 4);   // 4 bytes - Riff Title
+  uint32_t fileSize = readU32(file) + 8;    // 4 bytes - File Size
+  std::string format = readString(file, 4); // 4 bytes - File Format
 
   if (riff != "RIFF" || format != "WAVE") {
-    stream.close();
+    close();
     throw std::runtime_error("Only .wav files are supported");
   };
 
   char chunkName[5] = {};
   uint32_t chunkSize;
-  while (fread(&chunkName, 4, 1, stream.file) &&
-         fread(&chunkSize, 4, 1, stream.file)) {
-    off_t chunkEnd = ftello(stream.file) + chunkSize + (chunkSize & 1);
+  while (fread(&chunkName, 4, 1, file) &&
+         fread(&chunkSize, 4, 1, file)) {
+    off_t chunkEnd = ftello(file) + chunkSize + (chunkSize & 1);
 
     // Format Chunk
     if (std::strcmp(chunkName, "fmt ") == 0) {
-      uint16_t pcmFlags = readU16(stream.file);   // 2 bytes - PcmFlags
-      uint16_t channels = readU16(stream.file);   // 2 bytes - Channel Count
-      uint32_t sampleRate = readU32(stream.file); // 4 bytes - SampleRate
-      uint32_t byteRate = readU32(stream.file);   // 4 bytes - ByteRate
-      uint16_t blockAlign = readU16(stream.file); // 2 bytes - BlockAlign
-      uint16_t bitDepth = readU16(stream.file);   // 2 bytes - BitDepth
+      uint16_t pcmFlags = readU16(file);   // 2 bytes - PcmFlags
+      channels = readU16(file);            // 2 bytes - Channel Count
+      sampleRate = readU32(file);          // 4 bytes - SampleRate
+      uint32_t byteRate = readU32(file);   // 4 bytes - ByteRate
+      blockAlign = readU16(file);          // 2 bytes - BlockAlign
+      bitsPerSample = readU16(file);       // 2 bytes - BitDepth
 
-      stream.bitsPerSample = bitDepth;
-      stream.sampleRate = sampleRate;
-      stream.channels = channels;
-      stream.blockAlign = blockAlign;
-      stream.isFloatData = pcmFlags == 3;
+      isFloatData = pcmFlags == 3;
 
       if (chunkSize != 16) {
         uint16_t extensionSize =
-            readU16(stream.file); // 2 bytes - Extension Size
+            readU16(file); // 2 bytes - Extension Size
 
         // Wave Format Extensible
         if (pcmFlags == 65534) {
-          uint16_t validBits = readU16(stream.file);   // 2 bytes - Valid Bits
-          uint32_t channelMask = readU32(stream.file); // 4 bytes - Channel Mask
-          uint32_t subFormat = readU32(stream.file);   // 4 bytes - Sub Format
+          uint16_t validBits = readU16(file);   // 2 bytes - Valid Bits
+          uint32_t channelMask = readU32(file); // 4 bytes - Channel Mask
+          uint32_t subFormat = readU32(file);   // 4 bytes - Sub Format
 
           if (subFormat == 3) {
-            stream.isFloatData = true;
+            isFloatData = true;
           }
         }
       }
@@ -63,66 +58,63 @@ void AudioStream::open(const std::string &path) {
 
     // Data Chunk
     if (std::strcmp(chunkName, "data") == 0) {
-      if (stream.channels != 1) {
-        stream.close();
+      if (channels != 1) {
+        close();
         throw std::runtime_error("Only mono files are supported: " + path);
       }
 
-      stream.dataOffset = ftello(stream.file);
-      stream.totalFrames = chunkSize / stream.blockAlign;
-      stream.currentFrame = 0;
+      dataOffset = ftello(file);
+      totalFrames = chunkSize / blockAlign;
+      currentFrame = 0;
 
       // Normalization scale
-      float maxValue = 1u << (stream.bitsPerSample - 1);
-      stream.normalizationScale = 1.0f / (1.0 + maxValue);
+      float maxValue = 1u << (bitsPerSample - 1);
+      normalizationScale = 1.0f / (1.0 + maxValue);
 
-      stream.frameData.reserve(STREAM_CHUNK_FRAMES);
+      frameData.reserve(STREAM_CHUNK_FRAMES);
       return;
     }
-    fseeko(stream.file, chunkEnd, SEEK_SET);
+    fseeko(file, chunkEnd, SEEK_SET);
   }
 
-  stream.close();
+  close();
   throw std::runtime_error("Could not locate audio data from file: " + path);
 }
 
 void AudioStream::close() {
-  AudioStream &stream = *this;
-  if (stream.file) {
-    fclose(stream.file);
-    stream.file = nullptr;
+  if (file) {
+    fclose(file);
+    file = nullptr;
   }
 }
 
 void AudioStream::seek(uint32_t frame) {
-  AudioStream &stream = *this;
-  stream.currentFrame = std::min(frame, stream.totalFrames);
-  fseeko(stream.file,
-         stream.dataOffset + (off_t)stream.currentFrame * stream.blockAlign,
+  currentFrame = std::min(frame, totalFrames);
+  fseeko(file,
+         dataOffset + (off_t)currentFrame * blockAlign,
          SEEK_SET);
 }
 
 const std::vector<float> &AudioStream::readFrames(size_t frames) {
-  AudioStream &stream = *this;
 
-  size_t remainingFrames = stream.totalFrames - stream.currentFrame;
+  size_t remainingFrames = totalFrames - currentFrame;
   frames = std::min({frames, remainingFrames, STREAM_CHUNK_FRAMES});
-  stream.frameData.resize(frames);
+  frameData.resize(frames);
 
   size_t framesRead = 0;
 
-  if (stream.isFloatData) {
+  if (isFloatData) {
     framesRead =
-        fread(stream.frameData.data(), sizeof(float), frames, stream.file);
+        fread(frameData.data(), sizeof(float), frames, file);
   } else {
     uint8_t rawBytes[4096];
-    size_t bytesPerSample = stream.blockAlign;
+    size_t bytesPerSample = blockAlign;
     size_t samplesPerRead = sizeof(rawBytes) / bytesPerSample;
-    int unusedBits = 32 - stream.bitsPerSample;
+    int unusedBits = 32 - bitsPerSample;
 
     while (framesRead < frames) {
       size_t wanted = std::min(samplesPerRead, frames - framesRead);
-      size_t got = fread(rawBytes, bytesPerSample, wanted, stream.file);
+      size_t got = fread(rawBytes, bytesPerSample, wanted, file);
 
       // Construct each sample
       for (size_t i = 0; i < got; i++) {
@@ -133,7 +125,7 @@ const std::vector<float> &AudioStream::readFrames(size_t frames) {
         int32_t sample = (int32_t)(rawValue << unusedBits) >> unusedBits;
 
         // Normalize
-        stream.frameData[framesRead + i] = sample * stream.normalizationScale;
+        frameData[framesRead + i] = sample * normalizationScale;
       }
 
       framesRead += got;
@@ -144,12 +136,12 @@ const std::vector<float> &AudioStream::readFrames(size_t frames) {
   }
 
   if (framesRead < frames) {
-    stream.totalFrames = stream.currentFrame + framesRead;
+    totalFrames = currentFrame + framesRead;
   }
 
-  stream.currentFrame += framesRead;
-  stream.frameData.resize(framesRead);
-  return stream.frameData;
+  currentFrame += framesRead;
+  frameData.resize(framesRead);
+  return frameData;
 }
 
 bool AudioStream::isOpen() const { return file != nullptr; }
