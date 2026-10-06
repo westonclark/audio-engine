@@ -5,9 +5,10 @@
 RingBuffer::RingBuffer(size_t capacity)
     : data(capacity), capacity(capacity), mask(capacity - 1) {}
 
-size_t RingBuffer::available() const {
-  return writeIndex.load(std::memory_order_acquire) -
-         readIndex.load(std::memory_order_acquire);
+size_t RingBuffer::freeSpace() const {
+  size_t used = writeIndex.load(std::memory_order_acquire) -
+                readIndex.load(std::memory_order_acquire);
+  return capacity - used;
 }
 
 size_t RingBuffer::freeSpace() const { return capacity - available(); }

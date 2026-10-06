@@ -8,7 +8,6 @@ class RingBuffer {
 public:
   RingBuffer(size_t capacity);
 
-  size_t available() const;
   size_t freeSpace() const;
 
   size_t write(const float *source, size_t count);
