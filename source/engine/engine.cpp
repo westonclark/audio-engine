@@ -9,8 +9,7 @@ AudioEngine::AudioEngine(int sampleRate, int bufferSize)
 
 void AudioEngine::prepare() {
   setDeviceSampleRate(outputDevice.id, sampleRate);
-  outputProcId =
-      setDeviceCallback(outputDevice.id, coreAudioIOProc, this);
+  outputProcId = setDeviceCallback(outputDevice.id, coreAudioIOProc, this);
 
   for (Channel &channel : channels) {
     channel.fillBuffer();
@@ -83,19 +82,18 @@ void AudioEngine::process(const AudioBufferList *input, AudioBufferList *output,
       for (uint32_t frame = 0; frame < blockFrames; frame++) {
         float mixedValue = 0;
         for (Channel &channel : channels) {
-          mixedValue += channel.processBuffer[frame];
+          mixedValue += channel.channelBuffer[frame];
         }
         mixedValue = std::clamp(mixedValue, -1.f, 1.f);
 
+        // Mono channels are sent equally to every output channel
         uint32_t outIndex = (blockStart + frame) * outputChannels;
-        for (uint32_t c = 0; c < outputChannels; c++) {
-          outData[outIndex + c] = mixedValue;
+        for (uint32_t channel = 0; channel < outputChannels; channel++) {
+          outData[outIndex + channel] = mixedValue;
         }
       }
     }
   }
 };
 
-AudioEngine::~AudioEngine() {
-  teardown();
-}
+AudioEngine::~AudioEngine() { teardown(); }
