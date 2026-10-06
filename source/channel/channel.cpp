@@ -1,17 +1,18 @@
 #include "./channel.h"
 #include <cmath>
 
-Channel::Channel()
-    : ringBuffer(RING_BUFFER_FRAMES), channelBuffer(MAX_BLOCK_FRAMES) {
-  setGain(gain.load());
-}
+Channel::Channel() : ringBuffer(RING_BUFFER_FRAMES) { setGain(gain.load()); }
+
+void Channel::setGain(double newGain) {
+  gainRatio.store(std::pow(10.0, newGain / 20.0));
+};
 
 void Channel::loadFile(const std::string &path) {
   stream.open(path);
   ringBuffer.reset();
 }
 
-void Channel::fillBuffer() {
+void Channel::fillRingBuffer() {
   if (!stream.isOpen()) {
     return;
   }
@@ -21,6 +22,10 @@ void Channel::fillBuffer() {
     const std::vector<float> &frames = stream.readFrames(STREAM_CHUNK_FRAMES);
     ringBuffer.write(frames.data(), frames.size());
   }
+}
+
+void Channel::prepare(uint32_t maxFrames) {
+  channelBuffer.assign(maxFrames, 0.f);
 }
 
 void Channel::process(uint32_t frameCount) {
@@ -34,7 +39,3 @@ void Channel::process(uint32_t frameCount) {
     samples[i] *= ratio;
   }
 }
-
-void Channel::setGain(double newGain) {
-  gainRatio.store(std::pow(10.0, newGain / 20.0));
-};

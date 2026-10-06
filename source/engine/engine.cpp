@@ -9,10 +9,17 @@ AudioEngine::AudioEngine(int sampleRate, int bufferSize)
 
 void AudioEngine::prepare() {
   setDeviceSampleRate(outputDevice.id, sampleRate);
+
+  setDeviceBufferSize(outputDevice.id, bufferSize);
+
+  for (Channel &channel : channels) {
+    channel.prepare(bufferSize);
+  }
+
   outputProcId = setDeviceCallback(outputDevice.id, coreAudioIOProc, this);
 
   for (Channel &channel : channels) {
-    channel.fillBuffer();
+    channel.fillRingBuffer();
   }
   startDiskThread();
 }
@@ -57,7 +64,7 @@ void AudioEngine::stopDiskThread() {
 void AudioEngine::diskThreadLoop() {
   while (diskThreadRunning.load()) {
     for (Channel &channel : channels) {
-      channel.fillBuffer();
+      channel.fillRingBuffer();
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
@@ -66,31 +73,26 @@ void AudioEngine::diskThreadLoop() {
 void AudioEngine::process(const AudioBufferList *input, AudioBufferList *output,
                           uint32_t frameCount) {
 
-  for (uint32_t blockStart = 0; blockStart < frameCount;
-       blockStart += MAX_BLOCK_FRAMES) {
-    uint32_t blockFrames = std::min(frameCount - blockStart, MAX_BLOCK_FRAMES);
+  for (Channel &channel : channels) {
+    channel.process(frameCount);
+  }
 
-    for (Channel &channel : channels) {
-      channel.process(blockFrames);
-    }
+  for (uint32_t i = 0; i < (*output).mNumberBuffers; i++) {
+    AudioBuffer &buffer = (*output).mBuffers[i];
+    float *outData = static_cast<float *>(buffer.mData);
+    uint32_t outputChannels = buffer.mNumberChannels;
 
-    for (uint32_t i = 0; i < (*output).mNumberBuffers; i++) {
-      AudioBuffer &buffer = (*output).mBuffers[i];
-      float *outData = static_cast<float *>(buffer.mData);
-      uint32_t outputChannels = buffer.mNumberChannels;
+    for (uint32_t frame = 0; frame < frameCount; frame++) {
+      float mixedValue = 0;
+      for (Channel &channel : channels) {
+        mixedValue += channel.channelBuffer[frame];
+      }
+      mixedValue = std::clamp(mixedValue, -1.f, 1.f);
 
-      for (uint32_t frame = 0; frame < blockFrames; frame++) {
-        float mixedValue = 0;
-        for (Channel &channel : channels) {
-          mixedValue += channel.channelBuffer[frame];
-        }
-        mixedValue = std::clamp(mixedValue, -1.f, 1.f);
-
-        // Mono channels are sent equally to every output channel
-        uint32_t outIndex = (blockStart + frame) * outputChannels;
-        for (uint32_t channel = 0; channel < outputChannels; channel++) {
-          outData[outIndex + channel] = mixedValue;
-        }
+      // Mono channels are sent equally to every output channel
+      uint32_t outIndex = frame * outputChannels;
+      for (uint32_t channel = 0; channel < outputChannels; channel++) {
+        outData[outIndex + channel] = mixedValue;
       }
     }
   }

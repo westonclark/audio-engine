@@ -21,6 +21,9 @@ uint32_t getDeviceChannelCount(AudioDeviceID deviceId, AudioObjectPropertyScope 
 std::vector<float> getDeviceSampleRates(AudioDeviceID deviceId);
 void setDeviceSampleRate(AudioDeviceID deviceId, float sampleRate);
 
+uint32_t getDeviceBufferSize(AudioDeviceID deviceId);
+void setDeviceBufferSize(AudioDeviceID deviceId, uint32_t bufferSize);
+
 AudioDeviceIOProcID setDeviceCallback(AudioDeviceID deviceId, AudioDeviceIOProc procId, void *clientData = nullptr);
 void removeDeviceCallback(AudioDeviceID deviceId, AudioDeviceIOProcID procId);
 

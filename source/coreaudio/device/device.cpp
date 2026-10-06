@@ -189,3 +189,38 @@ void stopDevice(AudioDeviceID deviceId, AudioDeviceIOProcID procId) {
                              std::to_string(status));
   }
 }
+
+uint32_t getDeviceBufferSize(AudioDeviceID deviceId) {
+  AudioObjectPropertyAddress bufferSizePropertyAddress = {
+      .mSelector = kAudioDevicePropertyBufferFrameSize,
+      .mScope = kAudioObjectPropertyScopeGlobal,
+      .mElement = kAudioObjectPropertyElementMain};
+
+  UInt32 bufferSize;
+  uint32_t size = sizeof(bufferSize);
+  OSStatus status = AudioObjectGetPropertyData(
+      deviceId, &bufferSizePropertyAddress, 0, nullptr, &size, &bufferSize);
+  if (status != 0) {
+    throw std::runtime_error("getDeviceBufferSize failed for device " +
+                             std::to_string(deviceId) + ": " +
+                             std::to_string(status));
+  }
+  return bufferSize;
+}
+
+void setDeviceBufferSize(AudioDeviceID deviceId, uint32_t bufferSize) {
+  AudioObjectPropertyAddress bufferSizePropertyAddress = {
+      .mSelector = kAudioDevicePropertyBufferFrameSize,
+      .mScope = kAudioObjectPropertyScopeGlobal,
+      .mElement = kAudioObjectPropertyElementMain};
+
+  UInt32 frames = bufferSize;
+  OSStatus status =
+      AudioObjectSetPropertyData(deviceId, &bufferSizePropertyAddress, 0,
+                                 nullptr, sizeof(frames), &frames);
+  if (status != 0) {
+    throw std::runtime_error("setDeviceBufferSize failed for device " +
+                             std::to_string(deviceId) + ": " +
+                             std::to_string(status));
+  }
+}
