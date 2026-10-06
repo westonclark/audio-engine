@@ -2,7 +2,7 @@
 #include <cmath>
 
 Channel::Channel()
-    : ringBuffer(RING_BUFFER_FRAMES), processBuffer(MAX_BLOCK_FRAMES) {
+    : ringBuffer(RING_BUFFER_FRAMES), channelBuffer(MAX_BLOCK_FRAMES) {
   setGain(gain.load());
 }
 
@@ -17,14 +17,14 @@ void Channel::fillBuffer() {
   }
 
   while (!stream.isFinished() &&
-         ringBuffer.freeSpace() >= STREAM_CHUNK_FRAMES) {
+         ringBuffer.getFreeSpace() >= STREAM_CHUNK_FRAMES) {
     const std::vector<float> &frames = stream.readFrames(STREAM_CHUNK_FRAMES);
     ringBuffer.write(frames.data(), frames.size());
   }
 }
 
 void Channel::process(uint32_t frameCount) {
-  float *samples = processBuffer.data();
+  float *samples = channelBuffer.data();
 
   size_t framesRead = ringBuffer.read(samples, frameCount);
   std::fill(samples + framesRead, samples + frameCount, 0.f);

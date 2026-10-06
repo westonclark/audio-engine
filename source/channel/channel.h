@@ -17,7 +17,7 @@ public:
 
   AudioStream stream;         // disk thread only (after loadFile)
   RingBuffer ringBuffer;      // disk thread writes, audio thread reads
-  std::vector<float> processBuffer; // audio thread only
+  std::vector<float> channelBuffer; // audio thread only
 
   std::atomic<double> gain = 0;
   std::atomic<double> gainRatio;
